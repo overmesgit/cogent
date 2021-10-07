@@ -1,0 +1,12 @@
+version: "3.9"
+services:
+  frontend:
+    build: document_service
+    ports:
+      - "5000:5000"
+  worker:
+    build:
+      context: document_service
+      dockerfile: worker.Dockerfile
+  redis:
+    image: "redis:alpine"
