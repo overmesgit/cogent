@@ -1,0 +1,13 @@
+version: "3.9"
+services:
+  test:
+    build:
+      context: document_service
+      dockerfile: test.Dockerfile
+  redis:
+    image: "redis:alpine"
+    command: bash -c "
+      redis-server &&
+      redis-cli flushall
+      "
+    working_dir: "/data-test"

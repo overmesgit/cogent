@@ -4,7 +4,8 @@ from rq import Queue
 
 from task import process_document
 
-q = Queue(connection=Redis(host='redis'))
+redis_con = Redis(host='redis')
+q = Queue(connection=redis_con)
 
 app = Flask(__name__)
 
@@ -12,7 +13,13 @@ app = Flask(__name__)
 @app.route('/document/add')
 def document_add():
     q.enqueue(process_document)
-    return 'Hello World!'
+    res = redis_con.get('counter')
+    if not res:
+        res = 1
+    else:
+        res = 1 + int(res)
+    redis_con.set('counter', res)
+    return f'Hello World! {res}'
 
 
 @app.route('/document/')
@@ -21,7 +28,7 @@ def document_list():
 
 
 @app.route('/document/find')
-def document_list():
+def document_find():
     return 'Hello World!'
 
 

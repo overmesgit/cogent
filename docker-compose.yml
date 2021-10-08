@@ -4,9 +4,13 @@ services:
     build: document_service
     ports:
       - "5000:5000"
+    depends_on:
+      - redis
   worker:
     build:
       context: document_service
       dockerfile: worker.Dockerfile
+    depends_on:
+      - redis
   redis:
     image: "redis:alpine"

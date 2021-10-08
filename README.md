@@ -1,6 +1,6 @@
 ## About
 
-Best keyword match finding service.
+Service that finds the best keyword match in documents database.
 
 Supports:
 * add document
@@ -9,11 +9,17 @@ Supports:
 
 ## Usage
 
-`docker-compose up`
+Run services:
+
+```bash
+docker-compose up
+```
 
 Add document
 
-`curl`
+```bash
+curl
+```
 
 Find document
 
@@ -22,6 +28,9 @@ Find document
 List documents
 
 `curl`
+
+## Run tests
+docker-compose -f docker-compose-test.yml up --exit-code-from test -t 1
 
 ## Services
 
