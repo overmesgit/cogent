@@ -3,3 +3,4 @@ requests
 redis
 rq
 pytest
+pdfminer.six
