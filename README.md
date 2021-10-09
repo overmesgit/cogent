@@ -30,7 +30,7 @@ List documents
 `curl`
 
 ## Run tests
-docker-compose -f docker-compose-test.yml up --exit-code-from test -t 1
+docker-compose -f docker-compose-test.yml up --exit-code-from test -t 1 --build
 
 ## Services
 
