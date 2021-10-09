@@ -1,4 +1,5 @@
 import io
+from dataclasses import asdict
 
 from flask import Flask, request
 from rq import Queue
@@ -24,7 +25,7 @@ def document_add():
         file.save(buffer)
         file_base64 = Document.get_encoded_body(buffer.getvalue())
 
-    document = Document(body=file_base64)
+    document = Document(body=file_base64, filename=file.filename)
     document.save()
     q.enqueue(process_document, document)
     return {'document_id': document.id, 'status': Status(document.status).name}
@@ -32,13 +33,22 @@ def document_add():
 
 @app.route('/document/')
 def document_list():
-    documents = redis_con.keys('DOCUMENT_*')
-    return 'Hello World!' + documents
+    documents = Document.list()
+    res = []
+    for d in documents:
+        document_dict = asdict(d)
+        document_dict.pop('body')
+        document_dict.pop('keywords')
+        res.append(document_dict)
+    return {'objects': res}
 
 
 @app.route('/document/find')
 def document_find():
-    return 'Hello World!'
+    keyword = request.args.get('keyword')
+    if not keyword:
+        return {'error': "Please enter keyword as url parameter 'keyword'"}
+    return {'objects_scores': [r._asdict() for r in Document.documents_with_keyword(keyword)]}
 
 
 if __name__ == '__main__':

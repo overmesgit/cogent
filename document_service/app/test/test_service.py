@@ -31,7 +31,7 @@ def test_empty_db(client):
 
     status_res = Document.find_ids_with_status(Status.PROCESSING)
     assert [1] == sorted(status_res)
-    list_res = Document.list()
+    list_res = Document.list_keys()
     assert [1] == sorted(list_res)
 
     jobs = q.get_jobs()
@@ -68,11 +68,81 @@ def test_document_processing(client):
     worker = SimpleWorker([q], connection=q.connection)
     worker.work(burst=True)
 
-    res = Document.documents_with_keyword('Text1')
-    assert len(res) == 3
-    assert res[0].doc_id == 3
-    assert res[0].score == 3.0
+    scores_res = Document.documents_with_keyword('Text1')
+    assert len(scores_res) == 3
+    assert scores_res[0].doc_id == 3
+    assert scores_res[0].score == 3.0
 
     doc = Document.get_document(1)
     assert doc.keywords == {'Text1': 1, 'Text2': 1, 'Text3': 1}
     assert doc.status == Status.PROCESSED.value
+
+    resp = client.get(url_for('document_find', keyword='Text1'))
+    assert resp.status_code == HTTPStatus.OK
+    assert resp.json == {'objects_scores': [r._asdict() for r in scores_res]}
+
+
+def test_document_list(client):
+    with app.app_context():
+        load_file = functools.partial(
+            client.post, url_for('document_add'), content_type='multipart/form-data'
+        )
+
+    with app.app_context():
+        resp = client.get(url_for('document_list'))
+        assert resp.status_code == HTTPStatus.OK
+        assert resp.json == {'objects': []}
+
+    data = {'file': (io.BytesIO(simple1), 'simple1.pdf')}
+    response = load_file(data=data)
+    assert response.status_code == HTTPStatus.OK
+    assert {'document_id': 1, 'status': 'PROCESSING'} == response.json
+
+    data = {'file': (io.BytesIO(simple2), 'simple2.pdf')}
+    response = load_file(data=data)
+    assert response.status_code == HTTPStatus.OK
+    assert {'document_id': 2, 'status': 'PROCESSING'} == response.json
+
+    resp = client.get(url_for('document_list'))
+    assert resp.status_code == HTTPStatus.OK
+    assert 'objects' in resp.json
+    assert len(resp.json['objects']) == 2
+    obj = [o for o in resp.json['objects'] if o['id'] == 1][0]
+    assert obj['id'] == 1
+    assert obj['filename'] == 'simple1.pdf'
+    assert obj['status'] == 1
+    assert obj['added_time'] > 0
+
+
+def test_document_find(client):
+    with app.app_context():
+        load_file = functools.partial(
+            client.post, url_for('document_add'), content_type='multipart/form-data'
+        )
+
+    with app.app_context():
+        resp = client.get(url_for('document_find'))
+        assert resp.status_code == HTTPStatus.OK
+        assert resp.json == {'error': "Please enter keyword as url parameter 'keyword'"}
+
+    data = {'file': (io.BytesIO(simple1), 'simple1.pdf')}
+    response = load_file(data=data)
+    assert response.status_code == HTTPStatus.OK
+    assert {'document_id': 1, 'status': 'PROCESSING'} == response.json
+
+    data = {'file': (io.BytesIO(simple2), 'simple2.pdf')}
+    response = load_file(data=data)
+    assert response.status_code == HTTPStatus.OK
+    assert {'document_id': 2, 'status': 'PROCESSING'} == response.json
+
+    worker = SimpleWorker([q], connection=q.connection)
+    worker.work(burst=True)
+
+    scores_res = Document.documents_with_keyword('Text1')
+    assert len(scores_res) == 1
+    assert scores_res[0].doc_id == 1
+    assert scores_res[0].score == 1.0
+
+    resp = client.get(url_for('document_find', keyword='Text1'))
+    assert resp.status_code == HTTPStatus.OK
+    assert resp.json == {'objects_scores': [r._asdict() for r in scores_res]}

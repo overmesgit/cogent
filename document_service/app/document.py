@@ -15,29 +15,32 @@ class Status(Enum):
 
 @dataclass
 class Document:
+    filename: str
     body: str = ''
     status: Status = Status.PROCESSING.value
     added_time: int = field(default_factory=lambda: datetime.now().timestamp())
     keywords: dict = field(default_factory=dict)
     id: str = None
 
-    def __post_init__(self):
-        self.key_prefix = 'DOCUMENT'
-        self.status_index = 'status'
-        self.keyword_index = 'keyword'
+    class Meta:
+        KEY_PREFIX = 'DOCUMENT'
+        STATUS_INDEX = 'status'
+        KEYWORD_INDEX = 'keyword'
 
-    def get_key(self):
-        return f'{self.key_prefix}_{self.id}'
+    @staticmethod
+    def get_key(doc_id):
+        return f'{Document.Meta.KEY_PREFIX}_{doc_id}'
 
-    def get_keyword_index(self, keyword):
-        return f'{self.keyword_index}_{keyword}'
+    @staticmethod
+    def get_keyword_index(keyword):
+        return f'{Document.Meta.KEYWORD_INDEX}_{keyword}'
 
     def save(self):
         if self.id is None:
             document_id = redis_con.incr('counter')
             self.id = document_id
-        redis_con.set(self.get_key(), json.dumps(asdict(self)))
-        redis_con.zadd(self.status_index, {self.id: self.status})
+        redis_con.set(self.get_key(self.id), json.dumps(asdict(self)))
+        redis_con.zadd(self.Meta.STATUS_INDEX, {self.id: self.status})
 
         if self.keywords:
             for kw, rank in self.keywords.items():
@@ -53,24 +56,28 @@ class Document:
 
     @staticmethod
     def get_document(document_id):
-        document = Document(id=document_id)
-        resp = redis_con.get(document.get_key())
+        resp = redis_con.get(Document.get_key(document_id))
         if resp:
             return Document(**json.loads(resp))
         else:
             return None
 
     @staticmethod
-    def list():
-        prefix = Document().key_prefix
+    def list_keys():
+        prefix = Document.Meta.KEY_PREFIX
         keys = list(redis_con.scan_iter(f'{prefix}_*'))
         return [int(k.decode().removeprefix(prefix + '_')) for k in keys]
+
+    @staticmethod
+    def list():
+        keys = list(redis_con.scan_iter(f'{Document.Meta.KEY_PREFIX}_*'))
+        return [Document(**json.loads(r)) for r in redis_con.mget(keys)]
 
     @staticmethod
     def find_ids_with_status(status: Status):
         res = []
         for doc_id in redis_con.zrangebyscore(
-                Document().status_index,
+                Document.Meta.STATUS_INDEX,
                 min=status.value, max=status.value
         ):
             res.append(int(doc_id))
@@ -81,7 +88,7 @@ class Document:
         res_tuple = NamedTuple("SearchResult", (('doc_id', int), ('score', float)))
         res = []
         for doc_id, score in redis_con.zrevrangebyscore(
-                Document().get_keyword_index(keyword),
+                Document.get_keyword_index(keyword),
                 min='-inf', max='+inf',
                 start=0, num=3,
                 withscores=True
