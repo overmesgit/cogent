@@ -7,6 +7,10 @@ Supports:
 * list documents
 * find document
 
+## Install
+```bash
+git clone https://github.com/overmesgit/cogent && cd cogent
+```
 
 ## Run tests
 ```bash
@@ -14,12 +18,6 @@ docker-compose -f docker-compose-test.yml up --exit-code-from test -t 1 --build
 ```
 
 ## Usage
-
-Install
-```bash
-git clone https://github.com/overmesgit/cogent && cd cogent
-```
-
 Run services:
 
 ```bash
