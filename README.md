@@ -63,6 +63,15 @@ Frontend service receive document from user, load it in database and start
 worker job. Worker process documents and update it in db.
 There can be multiple fronted and worker services.
 
+## Keyword search index
+
+Keyword search uses Redis indexes to do efficient search. 
+After worker have parsed document, program calculates how many 
+each keyword document have and writes this data into keyword index 
+with document id as a key and keywords count as score.
+Later frontend service can use this keyword index for document
+searching.
+
 ### Supported formats
 
 * pdf
