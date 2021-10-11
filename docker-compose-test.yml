@@ -4,6 +4,8 @@ services:
     build:
       context: document_service
       dockerfile: test.Dockerfile
+    environment:
+      - REDIS_HOST=redis
   redis:
     image: "redis:alpine"
     command: bash -c "

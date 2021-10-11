@@ -1,11 +1,14 @@
 import base64
 import json
+import logging
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from enum import Enum, auto
 from typing import NamedTuple
 
 from app.db_connection import redis_con
+
+logger = logging.getLogger(__name__)
 
 
 class Status(Enum):
@@ -20,6 +23,7 @@ class Document:
     status: Status = Status.PROCESSING.value
     added_time: int = field(default_factory=lambda: datetime.now().timestamp())
     keywords: dict = field(default_factory=dict)
+    processing_error: str = ''
     id: str = None
 
     class Meta:
@@ -36,15 +40,19 @@ class Document:
         return f'{Document.Meta.KEYWORD_INDEX}_{keyword}'
 
     def save(self):
+        logger.info(f'Save document {self.id=}')
         if self.id is None:
             document_id = redis_con.incr('counter')
             self.id = document_id
-        redis_con.set(self.get_key(self.id), json.dumps(asdict(self)))
-        redis_con.zadd(self.Meta.STATUS_INDEX, {self.id: self.status})
 
+        redis_con.zadd(self.Meta.STATUS_INDEX, {self.id: self.status})
         if self.keywords:
+            logger.info(f'Update document keywords indexes {self.id=}')
+            self.status = Status.PROCESSED.value
             for kw, rank in self.keywords.items():
                 redis_con.zadd(self.get_keyword_index(kw), {self.id: rank})
+
+        redis_con.set(self.get_key(self.id), json.dumps(asdict(self)))
         return self
 
     def decode_body(self):
@@ -84,7 +92,7 @@ class Document:
         return res
 
     @staticmethod
-    def documents_with_keyword(keyword):
+    def get_documents_with_keyword(keyword):
         res_tuple = NamedTuple("SearchResult", (('doc_id', int), ('score', float)))
         res = []
         for doc_id, score in redis_con.zrevrangebyscore(

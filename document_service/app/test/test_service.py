@@ -39,6 +39,23 @@ def test_empty_db(client):
     assert jobs[0].func_name == 'app.task.process_document'
 
 
+def test_add_document(client):
+    with app.app_context():
+        load_file = functools.partial(
+            client.post, url_for('document_add'), content_type='multipart/form-data'
+        )
+
+    data = {'file': (io.BytesIO(simple1), 'simple1.asd')}
+    response = load_file(data=data)
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert {'error': 'wrong file format'} == response.json
+
+    data = {'file': (io.BytesIO(b'text text'), 'simple1.pdf')}
+    response = load_file(data=data)
+    assert response.status_code == HTTPStatus.BAD_REQUEST, response.data
+    assert {'error': 'wrong file content'} == response.json
+
+
 def test_document_processing(client):
     with app.app_context():
         load_file = functools.partial(
@@ -68,7 +85,7 @@ def test_document_processing(client):
     worker = SimpleWorker([q], connection=q.connection)
     worker.work(burst=True)
 
-    scores_res = Document.documents_with_keyword('Text1')
+    scores_res = Document.get_documents_with_keyword('Text1')
     assert len(scores_res) == 3
     assert scores_res[0].doc_id == 3
     assert scores_res[0].score == 3.0
@@ -138,7 +155,7 @@ def test_document_find(client):
     worker = SimpleWorker([q], connection=q.connection)
     worker.work(burst=True)
 
-    scores_res = Document.documents_with_keyword('Text1')
+    scores_res = Document.get_documents_with_keyword('Text1')
     assert len(scores_res) == 1
     assert scores_res[0].doc_id == 1
     assert scores_res[0].score == 1.0

@@ -1,20 +1,21 @@
-import io
-import re
+import logging
 from collections import Counter
 
-from app.document import Document, Status
-from pdfminer.high_level import extract_text
-from redis import Redis
+from app.document import Document
+from app.file_format.enabled_formats import FORMAT_TO_PARSER
 
-redis_con = Redis(host='redis')
+logger = logging.getLogger(__name__)
 
 
 def process_document(document: 'Document') -> None:
     try:
-        text = extract_text(io.BytesIO(document.decode_body()))
-        resp = re.findall(r'\b\w{3,}\b', text)
-        document.keywords = dict(Counter(resp))
-        document.status = Status.PROCESSED.value
+        file_format = document.filename.split('.')[-1]
+        parser = FORMAT_TO_PARSER[file_format]()
+
+        file_body = document.decode_body()
+        document.keywords = dict(Counter(parser.get_file_text(file_body)))
         document.save()
     except Exception as ex:
-        print('Exception', ex)
+        logger.error('ProcessDocumentError %s', ex)
+        document.error = str(ex)
+        document.save()
