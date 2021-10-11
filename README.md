@@ -7,12 +7,23 @@ Supports:
 * list documents
 * find document
 
+
+## Run tests
+```bash
+docker-compose -f docker-compose-test.yml up --exit-code-from test -t 1 --build
+```
+
 ## Usage
+
+Install
+```bash
+git clone https://github.com/overmesgit/cogent && cd cogent
+```
 
 Run services:
 
 ```bash
-docker-compose up
+docker-compose up  --build -t 1
 ```
 
 Add document:
@@ -33,25 +44,21 @@ List documents:
 curl http://localhost:5000/document/
 ```
 
-## Run tests
-```bash
-docker-compose -f docker-compose-test.yml up --exit-code-from test -t 1 --build
-```
 ## Services
-Service consist from 2 main programs:
+Service consists from 2 main programs:
 
 1. Frontend Service
 
 * Download document to db
-* Create task
-* Find doc
-* Document list
+* Schedule document for processing
+* Find document with keyword
+* Show document list
 
 2. Worker Service
 
 * Take task from queue
-* Process document
-* Save to db
+* Process document and get keywords
+* Update document
 
 They communicate between them through Redis database with rq library.
 Frontend service receive document from user, load it in database and start 
@@ -68,7 +75,13 @@ There can be multiple fronted and worker services.
 If scalability in high priority I would also consider to use AWS Lambda functions,
 because with simple architecture very high scalability can be reached.
 
+With current structure services can be deployed to AWS ECS service. Auto-scaling also can be
+configured.
+
 In production documents should be downloaded to S3.
 
 Redis isn't reliable persistence storage, for real application I would prefer some SQL database.
-I have used Redis because I already have it for workers queue. 
+I have used Redis because I already have it for workers queue.
+
+It was interesting assigment. I didn't work with docker-compose and redis before, so it took
+some time to set it up.
